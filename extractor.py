@@ -16,14 +16,18 @@ import timeit
 _IMAGE_SIZE = 224
 _NUM_CLASSES = 400
 
-class Video:
-	def __init__(self, file_name, clip_optical_flow_at):
+class ActiveVideo:
+	def __init__(self, file_name, clip_optical_flow_at, fps=None):
 		self.file_name = file_name
 		self.clip_optical_flow_at=int(clip_optical_flow_at)
+		if fps is None:
+			self.fps = 0
+		else:
+			self.fps = fps
 
 	def get_batch(self):
 		loader = libCppInterface.ActiveLoader()
-		loader.initialize(self.file_name)
+		loader.initialize(self.file_name, self.fps)
 
 		rgb = loader.getFrames()
 		flow = loader.getOpticalFlows(self.clip_optical_flow_at)

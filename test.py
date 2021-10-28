@@ -48,26 +48,66 @@ class Video:
         print(data.shape)
         np.save(osp.join(dest_path, self.file_name[self.file_name.rfind('/')+1:]), data)
 
-v = Video("/data/changjian/v_CricketShot_g04_c01.avi", 1, 1, 15, False)
+class ActiveVideo:
+	def __init__(self, file_name, clip_optical_flow_at, fps=None):
+		self.file_name = file_name
+		self.clip_optical_flow_at=int(clip_optical_flow_at)
+		if fps is None:
+			self.fps = 0
+		else:
+			self.fps = fps
+
+	def get_batch(self):
+		loader = libCppInterface.ActiveLoader()
+		loader.initialize(self.file_name, self.fps)
+
+		rgb = loader.getFrames()
+		flow = loader.getOpticalFlows(self.clip_optical_flow_at)
+
+		if rgb.shape[1]<10:
+			raise Exception('Video is very small')
+
+		return rgb, flow
+
+v = Video("/data/changjian/v_CricketShot_g04_c01.avi", 1, 1, 20, False)
 # rgb, flow = v.get_batch()
 # print(rgb.shape)
 # print(flow.shape)
-al = []
+all_flow = []
+all_rgb = []
 while v.has_data():
     rgb, flow = v.get_batch()
-    al.append(flow)
+    all_rgb.append(rgb)
+    all_flow.append(flow)
 
-for idx, flow in enumerate(al):
-    flow = flow[0,0]
-    flow = flow[:, :, 0]
-    data = flow
-    print("{}-{}-{}-{}".format(data[0][0], 
-                        data[0][1], 
-                        data[1][0], 
-                        data[1][1]))
-    data = flow.astype(np.uint8)
-    data = data[:, :, np.newaxis].repeat(axis=2, repeats=3)
-    im = Image.fromarray(data)
-    im.save("data/{}_x.jpg".format(idx+1))
+active_v = ActiveVideo("/data/changjian/v_CricketShot_g04_c01.avi", 20)
+rgb, flow = active_v.get_batch()
+
+active_v2 = ActiveVideo("/data/changjian/v_CricketShot_g04_c01.avi", 20, 12)
+rgb2, flow2 = active_v2.get_batch()
+
+# for i in range(79):
+#     a_flow = all_flow[i]
+#     a_rgb = all_rgb[i]
+#     b_flow = flow[:, i:i+1, :, :, :]
+#     b_rgb = rgb[:, i:i+1, :, :, :]
+#     err_flow = ((a_flow - b_flow)**2).sum()
+#     err_rgb = ((a_rgb - b_rgb)**2).sum()
+#     if err_flow > 0.0001 or err_rgb > 0.0001:
+#         print(i, err_flow, err_rgb)
+#         import IPython; IPython.embed(); exit()
+
+# for idx, flow in enumerate(al):
+#     flow = flow[0,0]
+#     flow = flow[:, :, 0]
+#     data = flow
+#     print("{}-{}-{}-{}".format(data[0][0], 
+#                         data[0][1], 
+#                         data[1][0], 
+#                         data[1][1]))
+#     data = flow.astype(np.uint8)
+#     data = data[:, :, np.newaxis].repeat(axis=2, repeats=3)
+#     im = Image.fromarray(data)
+#     im.save("data/{}_x.jpg".format(idx+1))
 
 import IPython; IPython.embed(); exit()

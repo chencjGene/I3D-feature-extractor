@@ -28,12 +28,13 @@ private:
 	std::list<Mat> flows;
 
 	void populateFrames(const char* video);
+	void populateFrames_with_fps(const char* video, const uint fps);
 	void populateOpticalFlows();
 	
 public:
 	ActiveLoader() {}
 	~ActiveLoader() { }
-	void initialize(const char* videoFile);
+	void initialize(const char* videoFile, const uint fps);
 
 	np::ndarray getOpticalFlows(float bound);
 	np::ndarray getFrames();

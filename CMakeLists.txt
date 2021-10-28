@@ -1,0 +1,36 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+IF(NOT CMAKE_BUILD_TYPE)
+  #SET(CMAKE_BUILD_TYPE "DEBUG")
+  SET(CMAKE_BUILD_TYPE "RELEASE")
+  #SET(CMAKE_BUILD_TYPE "RELWITHDEBINFO")
+  #SET(CMAKE_BUILD_TYPE "MINSIZEREL")
+ENDIF()
+
+SET (BOOST_ROOT "/home/aa/boost_1_77_0")
+SET (BOOST_INCLUDEDIR "/home/aa/boost_1_77_0")
+SET (BOOST_LIBRARYDIR "/home/aa/boost_1_77_0/stage/lib")
+SET (BOOST_MIN_VERSION "1.65.0")
+set (Boost_NO_BOOST_CMAKE ON)
+
+
+FIND_PACKAGE(OpenCV 4.5.2 REQUIRED PATHS /home/aa/Opencv/opencv-4.5.2/build)
+FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} REQUIRED)
+IF(Boost_FOUND)
+  INCLUDE_DIRECTORIES("${Boost_INCLUDE_DIRS}" "/usr/include/python3.6" "${OpenCV_INCLUDE_DIRS}")
+  SET(Boost_USE_STATIC_LIBS OFF)
+  SET(Boost_USE_MULTITHREADED ON)
+  SET(Boost_USE_STATIC_RUNTIME OFF)
+  FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} COMPONENTS python numpy)
+
+  ADD_LIBRARY(CppInterface SHARED CppInterface.cpp ActiveLoader.cpp Utils.cpp LazyLoader.cpp)
+  TARGET_LINK_LIBRARIES(CppInterface ${Boost_LIBRARIES}
+				  ${OpenCV_LIBS})
+ELSEIF(NOT Boost_FOUND)
+  MESSAGE(FATAL_ERROR "Unable to find correct Boost version. Did you set BOOST_ROOT?")
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_DEFINITIONS("-Wall")
+ELSE()
+  MESSAGE(FATAL_ERROR "CMakeLists.txt has not been tested/written for your compiler.")
+ENDIF()
