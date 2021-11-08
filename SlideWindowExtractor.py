@@ -6,15 +6,32 @@ import numpy as np
 import tensorflow as tf
 
 import i3d
-
+import random
 import libCppInterface
 import os
 import os.path as osp
 import begin
 import sonnet as snt
 import timeit
+import tensorflow as tf
+import cv2
+
 _IMAGE_SIZE = 224
 _NUM_CLASSES = 400
+
+def change(input_file, output_file):
+    vid = cv2.VideoCapture(input_file)
+    w, h = [int(vid.get(3)), int(vid.get(4))]
+    fps = vid.get(cv2.CAP_PROP_FPS)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(output_file, fourcc, 25, (w,h))
+    while(True):
+        ret, frame = vid.read()
+        if ret:
+            out.write(frame)
+        else:
+            break
+    out.release()
 
 class Video:
     def __init__(self, file_name, temporal_window, batch_size, clip_optical_flow_at, is_only_for_rgb):
@@ -60,20 +77,23 @@ class Video:
 
 
 @begin.start
-def main(videos, temporal_window=21, batch_size=1, clip_optical_flow_at=20, dest_path='', base_path_to_chk_pts='', is_only_for_rgb=0):
+def main(videos, temporal_window=21, batch_size=1, clip_optical_flow_at=20, dest_path='', is_only_for_rgb=0, experiment_name='test'):
+    config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+    session = tf.compat.v1.Session(config=config)
+    error_str = ''
+    
     is_only_for_rgb = bool(is_only_for_rgb)
-    if base_path_to_chk_pts=='' or dest_path=='':
-        raise Exception('Please provide path to the model checkpoints and to the destination features')
+    if dest_path=='':
+        raise Exception('Please provide path to the destination features')
 
     _CHECKPOINT_PATHS = {
-        'rgb': osp.join(base_path_to_chk_pts, 'rgb_scratch/model.ckpt'),
-        'flow': osp.join(base_path_to_chk_pts, 'flow_scratch/model.ckpt'),
-        'rgb_imagenet': osp.join(base_path_to_chk_pts, 'rgb_imagenet/model.ckpt'),
-        'flow_imagenet': osp.join(base_path_to_chk_pts, 'flow_imagenet/model.ckpt'),
+        'rgb_imagenet': 'data/checkpoints/rgb_imagenet/model.ckpt',
+        'flow_imagenet': 'data/checkpoints/flow_imagenet/model.ckpt',
     }
 
 
     FLAGS = tf.flags.FLAGS
+    print(FLAGS)
     tf.flags.DEFINE_string('eval_type', 'joint', 'rgb, flow, or joint')
     tf.flags.DEFINE_boolean('imagenet_pretrained', True, '')
 
@@ -142,16 +162,22 @@ def main(videos, temporal_window=21, batch_size=1, clip_optical_flow_at=20, dest
         if not is_only_for_rgb:
             flow_saver.restore(sess, _CHECKPOINT_PATHS['flow_imagenet'])
 
-        start = timeit.default_timer()
+
         for vid in videos:
+            start = timeit.default_timer() 
             try:
                 print(vid)
+                filename = vid[vid.rfind('/')+1:]
+                change(vid, './' + filename + '.avi')
+                
+                vid = './' + filename + '.avi'
                 v = Video(vid, temporal_window, batch_size, clip_optical_flow_at, is_only_for_rgb)
                             
-                while v.has_data():            
+                while v.has_data():           
+                    
                     rgb, flow = v.get_batch()
-                    #print(rgb.shape)
-                    #print(flow.shape)
+                    # print(rgb.shape)
+                    # print(flow.shape)
                     feed_dict[rgb_input] = rgb
                     if not is_only_for_rgb:
                         feed_dict[flow_input] = flow
@@ -161,7 +187,14 @@ def main(videos, temporal_window=21, batch_size=1, clip_optical_flow_at=20, dest
                         rgb_features = sess.run([rgb_logits], feed_dict=feed_dict)
                         v.append_feature(rgb_features)
                 v.finalize(dest_path)
+                os.remove(vid)
             except Exception as e:
                 print(str(e))
-        stop = timeit.default_timer()
-        print(stop-start)
+                error_str += vid
+                error_str += '\n'
+            stop = timeit.default_timer()
+            print(stop-start)
+            
+    name = experiment_name + '.txt'
+    with open(name, 'w') as file:
+        file.write(error_str)

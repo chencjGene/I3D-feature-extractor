@@ -69,10 +69,46 @@ class ActiveVideo:
 
 		return rgb, flow
 
-v = Video("/data/changjian/v_CricketShot_g04_c01.avi", 1, 1, 20, False)
-# rgb, flow = v.get_batch()
-# print(rgb.shape)
-# print(flow.shape)
+class BatchVideo:
+    def __init__(self, file_name, batch_size, clip_optical_flow_at=20):
+        self.file_name = file_name
+        self.temporal_window = 1
+        self.batch_size = batch_size
+        self.rgb_data = []
+        self.flow_data = []
+        self.batch_id = 0
+        self.clip_optical_flow_at=int(clip_optical_flow_at)
+        self.features = [] #np.array([])
+        self.is_only_for_rgb = False
+        self.loader = libCppInterface.LazyLoader()
+        self.loader.initializeLazy(self.file_name, self.batch_size, self.temporal_window, self.is_only_for_rgb)
+
+    def has_data(self):
+        return self.loader.hasNextBatch()
+
+    def get_batch(self):
+        if self.loader.hasNextBatch():
+            result_rgb = self.loader.nextBatchFrames()
+            if not self.is_only_for_rgb:
+                result_flow = self.loader.nextBatchFlows()
+                return result_rgb.squeeze(axis=1), result_flow.squeeze(axis=1)
+            else:
+                return result_rgb, None
+        else:
+            return None, None
+
+# v = Video("/data/changjian/v_CricketShot_g04_c01.avi", 1, 1, 20, False)
+# # rgb, flow = v.get_batch()
+# # print(rgb.shape)
+# # print(flow.shape)
+# all_flow = []
+# all_rgb = []
+# while v.has_data():
+#     rgb, flow = v.get_batch()
+#     all_rgb.append(rgb)
+#     all_flow.append(flow)
+
+v = BatchVideo("/data/changjian/v_CricketShot_g04_c01.avi", 36)
 all_flow = []
 all_rgb = []
 while v.has_data():
@@ -80,11 +116,16 @@ while v.has_data():
     all_rgb.append(rgb)
     all_flow.append(flow)
 
+v_rgb = np.concatenate(all_rgb)
+v_flow = np.concatenate(all_flow)
+
 active_v = ActiveVideo("/data/changjian/v_CricketShot_g04_c01.avi", 20)
+# active_v = ActiveVideo("/data/VideoVisProject/ActivityNet/AN2/v1-2/train/v_--0edUL8zmA.mp4", 20)
 rgb, flow = active_v.get_batch()
 
-active_v2 = ActiveVideo("/data/changjian/v_CricketShot_g04_c01.avi", 20, 12)
-rgb2, flow2 = active_v2.get_batch()
+
+# active_v2 = ActiveVideo("/data/changjian/v_CricketShot_g04_c01.avi", 20, 12)
+# rgb2, flow2 = active_v2.get_batch()
 
 # for i in range(79):
 #     a_flow = all_flow[i]
@@ -109,5 +150,7 @@ rgb2, flow2 = active_v2.get_batch()
 #     data = data[:, :, np.newaxis].repeat(axis=2, repeats=3)
 #     im = Image.fromarray(data)
 #     im.save("data/{}_x.jpg".format(idx+1))
+# for i in range(942): 
+#    print(i, i /15, flow[0][i].min(), flow[0][i].max()) 
 
 import IPython; IPython.embed(); exit()
